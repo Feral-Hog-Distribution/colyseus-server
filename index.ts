@@ -9,7 +9,7 @@ import { monitor } from '@colyseus/monitor';
 // Import demo room handlers
 import { ChatRoom } from "./rooms/01-chat-room";
 import { StateHandlerRoom } from "./rooms/02-state-handler";
-import { AuthRoom } from "./rooms/03-auth";
+import { HogServerRoom } from './rooms/hog-server'
 
 const port = Number(process.env.PORT || 2567) + Number(process.env.NODE_APP_INSTANCE || 0);
 const app = express();
@@ -26,6 +26,8 @@ const gameServer = new Server({
 // Register ChatRoom as "chat"
 gameServer.define("chat", ChatRoom);
 
+gameServer.define("state_handler", StateHandlerRoom);
+
 // Register ChatRoom with initial options, as "chat_with_options"
 // onInit(options) will receive client join options + options registered here.
 gameServer.define("chat_with_options", ChatRoom, {
@@ -33,10 +35,7 @@ gameServer.define("chat_with_options", ChatRoom, {
 });
 
 // Register StateHandlerRoom as "state_handler"
-gameServer.define("state_handler", StateHandlerRoom);
-
-// Register StateHandlerRoom as "state_handler"
-gameServer.define("auth", AuthRoom);
+gameServer.define("feral-hog-distribution", HogServerRoom);
 
 app.use('/', express.static(path.join(__dirname, "static")));
 app.use('/', serveIndex(path.join(__dirname, "static"), {'icons': true}))
