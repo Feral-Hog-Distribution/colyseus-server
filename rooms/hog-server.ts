@@ -6,11 +6,21 @@ export class ShipZone extends Schema {
   name: string;
   @type("number")
   health: number;
+  @type("string")
+  clientId: string
 
   constructor(name: string, health: number = 50) {
     super()
     this.name = name;
     this.health = health
+  }
+
+  hasPlayer() {
+    return !!this.clientId
+  }
+
+  setPlayer(clientId: string) {
+    this.clientId = clientId
   }
 
   help(value: number = 1) {
@@ -20,13 +30,18 @@ export class ShipZone extends Schema {
 
 export class State extends Schema {
   @type(ShipZone)
-  booster = new ShipZone("booster")
+  booster = new ShipZone("Booster")
   @type(ShipZone)
-  navigator = new ShipZone("navigator")
+  navigator = new ShipZone("Navigator")
   @type(ShipZone)
-  wrangler = new ShipZone("wraggler")
+  wrangler = new ShipZone("Wrangler")
   @type(ShipZone)
-  lifeSupport = new ShipZone("lifeSupport")
+  lifeSupport = new ShipZone("Life Support")
+
+  @type({ map: ShipZone })
+  zones = new MapSchema<ShipZone>();
+
+  zonesArray = [this.booster, this.navigator, this.wrangler, this.lifeSupport]
 
   helpBooster(value: number = 1) {
     this.booster.help(value)
@@ -39,6 +54,20 @@ export class State extends Schema {
   }
   helpLifeSupport(value: number = 1) {
     this.lifeSupport.help(value)
+  }
+
+  getRoleByClientId(clientId: string) {
+    return this.zones[clientId]
+  }
+
+  addClientToUnfilledRole(clientId: string) {
+    const unfilledRole = this.zonesArray.find(function(zone) { return !zone.hasPlayer() })
+    unfilledRole.setPlayer(clientId)
+    this.zones[clientId] = unfilledRole
+  }
+
+  removeClientFromRole(clientId: string) {
+    this.getRoleByClientId(clientId).setPlayer(null)
   }
 }
 
@@ -53,12 +82,12 @@ export class HogServerRoom extends Room<State> {
 
   onJoin(client: Client) {
     // Person HAS joined!
-    // this.state.createPlayer(client.sessionId);
+    this.state.addClientToUnfilledRole(client.sessionId)
   }
 
   onLeave(client) {
     // Person HAS left!
-    // this.state.removePlayer(client.sessionId);
+    this.state.removeClientFromRole(client.sessionId)
   }
 
   onMessage(client, data) {
