@@ -26,7 +26,10 @@
 
   <strong>commands</strong><br>
 
-  <p id="booster">50</p>
+  <p>Booster <span id="booster"></span></p>
+  <p>Navigator <span id="navigator"></span></p>
+  <p>Wrangler <span id="wrangler"></span></p>
+  <p>Life Support <span id="life-support"></span></p>
   <button onclick="helpBooster()">Help booster</button>
   <button onclick="helpNavigator()">Help navigator</button>
   <br />
@@ -36,51 +39,49 @@
   <script>
     var host = window.document.location.host.replace(/:.*/, '');
 
-    var client = new Colyseus.Client(location.protocol.replace("http", "ws") + "//" + host + (location.port ? ':' + location.port : ''));
+    var clientString = location.protocol.replace("http", "ws") + "//" + host + (location.port ? ':' + location.port : '')
+    console.log(clientString)
+    var client = new Colyseus.Client(clientString);
     var room;
     client.joinOrCreate("feral-hog-distribution").then(room_instance => {
       room = room_instance
 
-      // listen to patches coming from the server
-      room.state.booster.onChange = function (updates, key) {
-        var updatedHealth = updates.find(function(update) { return update.field === "health"})
-        if (updatedHealth) {
-          var boosterElement = document.getElementById("booster")
-          boosterElement.innerHTML = updatedHealth.value
-        }
+      function updateElementWithValue(updates, elementId, fieldName) {
+        var updatedHealth = updates.find(function(update) { return update.field === fieldName })
+        if (!updatedHealth) return
+        var element = document.getElementById(elementId)
+        element.innerHTML = updatedHealth.value
       }
 
-      window.addEventListener("keydown", function (e) {
-        if (e.which === 38) {
-          helpBooster();
-
-        } else if (e.which === 39) {
-          helpNavigator();
-
-        } else if (e.which === 40) {
-          helpWrangler();
-
-        } else if (e.which === 37) {
-          helpLifeSupport();
-        }
-      });
-
+      // listen to patches coming from the server
+      room.state.booster.onChange = function (updates) {
+        updateElementWithValue(updates, "booster", "health")
+      }
+      room.state.navigator.onChange = function (updates) {
+        updateElementWithValue(updates, "navigator", "health")
+      }
+      room.state.wrangler.onChange = function (updates) {
+        updateElementWithValue(updates, "wrangler", "health")
+      }
+      room.state.lifeSupport.onChange = function (updates) {
+        updateElementWithValue(updates, "life-support", "health")
+      }
     });
 
     function helpBooster() {
-      room.send({ command: 'booster' });
+      room.send({ command: 'booster', value: 2 });
     }
 
     function helpNavigator() {
-      room.send({ x: 1 });
+      room.send({ command: 'navigator', value: 2 });
     }
 
     function helpWrangler() {
-      room.send({ y: 1 })
+      room.send({ command: 'wrangler', value: 2 });
     }
 
     function helpLifeSupport() {
-      room.send({ x: -1 })
+      room.send({ command: 'lifeSupport', value: 2 });
     }
 
 

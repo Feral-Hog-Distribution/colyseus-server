@@ -13,21 +13,33 @@ export class ShipZone extends Schema {
     this.health = health
   }
 
-  help() {
-    this.health += 1
+  help(value: number = 1) {
+    this.health += value
   }
 }
 
 export class State extends Schema {
   @type(ShipZone)
   booster = new ShipZone("booster")
+  @type(ShipZone)
+  navigator = new ShipZone("navigator")
+  @type(ShipZone)
+  wrangler = new ShipZone("wraggler")
+  @type(ShipZone)
+  lifeSupport = new ShipZone("lifeSupport")
 
-  helpBooster() {
-    this.booster.help()
+  helpBooster(value: number = 1) {
+    this.booster.help(value)
   }
-  helpNavigator() { }
-  helpWrangler() { }
-  helpLifeSupport() { }
+  helpNavigator(value: number = 1) {
+    this.navigator.help(value)
+  }
+  helpWrangler(value: number = 1) {
+    this.wrangler.help(value)
+  }
+  helpLifeSupport(value: number = 1) {
+    this.lifeSupport.help(value)
+  }
 }
 
 export class HogServerRoom extends Room<State> {
@@ -40,17 +52,27 @@ export class HogServerRoom extends Room<State> {
   }
 
   onJoin(client: Client) {
+    // Person HAS joined!
     // this.state.createPlayer(client.sessionId);
   }
 
   onLeave(client) {
+    // Person HAS left!
     // this.state.removePlayer(client.sessionId);
   }
 
   onMessage(client, data) {
     console.log("StateHandlerRoom received message from", client.sessionId, ":", data);
     if (data.command === "booster") {
-      this.state.helpBooster();
+      this.state.helpBooster(data.value);
+    } else if (data.command === "navigator") {
+      this.state.helpNavigator(data.value);
+    } else if (data.command === "wrangler") {
+      this.state.helpWrangler(data.value);
+    } else if (data.command === "lifeSupport") {
+      this.state.helpLifeSupport(data.value);
+    } else {
+      console.log("unknown command")
     }
   }
 
