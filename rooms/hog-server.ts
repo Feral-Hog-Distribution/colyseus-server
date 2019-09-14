@@ -6,7 +6,7 @@ export class ShipZone extends Schema {
   id: string;
   @type("string")
   name: string;
-  @type("number")
+  @type("int16")
   boops: number;
   @type("string")
   clientId: string
@@ -45,11 +45,18 @@ export class State extends Schema {
   @type(ShipZone)
   lifeSupport = new ShipZone("lifeSupport", "Life Support")
 
+  @type("boolean")
+  betweenRounds = false
+
+  @type("int16")
+  totalBoopsRequired = 30
+
+  // map of client ids to zones
   @type({ map: ShipZone })
   zones = new MapSchema<ShipZone>();
 
-  @type("number")
-  stage: number = 0
+  @type("int16")
+  stage: number = 1
 
   zonesArray = [this.booster, this.navigator, this.wrangler, this.lifeSupport]
 
@@ -82,11 +89,16 @@ export class State extends Schema {
   }
 
   hasEveryoneBoopedEnough() {
-    return this.totalBoops() > 50
+    return this.totalBoops() > (this.totalBoopsRequired * this.stage)
+  }
+
+  nextRound() {
+    this.betweenRounds = false
   }
 
   winTheGame() {
     this.stage += 1
+    this.betweenRounds = true
     console.log("we wind the game")
   }
 
@@ -136,6 +148,8 @@ export class HogServerRoom extends Room<State> {
       this.state.helpLifeSupport(data.value);
     } else if (data.command === "resetGame") {
       this.state.resetGame()
+    } else if (data.command === "nextRound") {
+      this.state.nextRound()
     } else {
       console.log("unknown command")
     }
