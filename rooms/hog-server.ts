@@ -89,7 +89,7 @@ export class State extends Schema {
   }
 
   hasEveryoneBoopedEnough() {
-    return this.totalBoops() > (this.totalBoopsRequired * this.stage)
+    return this.totalBoops() >= (this.totalBoopsRequired * this.stage)
   }
 
   nextRound() {
