@@ -3,14 +3,17 @@ import { Schema, type, MapSchema } from "@colyseus/schema";
 
 export class ShipZone extends Schema {
   @type("string")
+  id: string;
+  @type("string")
   name: string;
   @type("number")
   health: number;
   @type("string")
   clientId: string
 
-  constructor(name: string, health: number = 50) {
+  constructor(id: string, name: string, health: number = 50) {
     super()
+    this.id = id;
     this.name = name;
     this.health = health
   }
@@ -30,13 +33,13 @@ export class ShipZone extends Schema {
 
 export class State extends Schema {
   @type(ShipZone)
-  booster = new ShipZone("Booster")
+  booster = new ShipZone("booster", "Booster")
   @type(ShipZone)
-  navigator = new ShipZone("Navigator")
+  navigator = new ShipZone("navigator", "Navigator")
   @type(ShipZone)
-  wrangler = new ShipZone("Wrangler")
+  wrangler = new ShipZone("wrangler", "Wrangler")
   @type(ShipZone)
-  lifeSupport = new ShipZone("Life Support")
+  lifeSupport = new ShipZone("lifeSupport", "Life Support")
 
   @type({ map: ShipZone })
   zones = new MapSchema<ShipZone>();
