@@ -1,25 +1,30 @@
 import { Room, Client } from "colyseus";
 import { Schema, type, MapSchema } from "@colyseus/schema";
 
-export class Player extends Schema {
+export class ShipZone extends Schema {
+  @type("string")
+  name: string;
   @type("number")
-  x = Math.floor(Math.random() * 400);
+  health: number;
 
-  @type("number")
-  y = Math.floor(Math.random() * 400);
+  constructor(name: string, health: number = 50) {
+    super()
+    this.name = name;
+    this.health = health
+  }
+
+  help() {
+    this.health += 1
+  }
 }
 
 export class State extends Schema {
-  @type("number")
-  booster = 50
-  @type("number")
-  navigator = 50
-  @type("number")
-  wrangler = 50
-  @type("number")
-  lifeSupport = 50
+  @type(ShipZone)
+  booster = new ShipZone("booster")
 
-  helpBooster() { this.booster += 1 }
+  helpBooster() {
+    this.booster.help()
+  }
   helpNavigator() { }
   helpWrangler() { }
   helpLifeSupport() { }

@@ -26,6 +26,7 @@
 
   <strong>commands</strong><br>
 
+  <p id="booster">50</p>
   <button onclick="helpBooster()">Help booster</button>
   <button onclick="helpNavigator()">Help navigator</button>
   <br />
@@ -41,27 +42,12 @@
       room = room_instance
 
       // listen to patches coming from the server
-      room.state.players.onAdd = function (player, sessionId) {
-        var dom = document.createElement("div");
-        dom.className = "player";
-        dom.style.helpLifeSupport = player.x + "px";
-        dom.style.top = player.y + "px";
-        dom.style.background = colors[Math.floor(Math.random() * colors.length)];
-        dom.innerHTML = "Player " + sessionId;
-
-        players[sessionId] = dom;
-        document.body.appendChild(dom);
-      }
-
-      room.state.players.onRemove = function (player, sessionId) {
-        document.body.removeChild(players[sessionId]);
-        delete players[sessionId];
-      }
-
-      room.state.players.onChange = function (player, sessionId) {
-        var dom = players[sessionId];
-        dom.style.helpLifeSupport = player.x + "px";
-        dom.style.top = player.y + "px";
+      room.state.booster.onChange = function (updates, key) {
+        var updatedHealth = updates.find(function(update) { return update.field === "health"})
+        if (updatedHealth) {
+          var boosterElement = document.getElementById("booster")
+          boosterElement.innerHTML = updatedHealth.value
+        }
       }
 
       window.addEventListener("keydown", function (e) {
