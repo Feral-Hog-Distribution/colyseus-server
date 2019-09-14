@@ -7,19 +7,19 @@ export class ShipZone extends Schema {
   @type("string")
   name: string;
   @type("number")
-  health: number;
+  boops: number;
   @type("string")
   clientId: string
 
-  constructor(id: string, name: string, health: number = 0) {
+  constructor(id: string, name: string, boops: number = 0) {
     super()
     this.id = id;
     this.name = name;
-    this.health = health
+    this.boops = boops
   }
 
   reset() {
-    this.health = 0
+    this.boops = 0
   }
 
   hasPlayer() {
@@ -31,7 +31,7 @@ export class ShipZone extends Schema {
   }
 
   help(value: number = 1) {
-    this.health += value
+    this.boops += value
   }
 }
 
@@ -76,7 +76,7 @@ export class State extends Schema {
   totalBoops() {
     var boops = 0
     for (var i = 0; i < this.zonesArray.length; i++) {
-      boops += this.zonesArray[i].health
+      boops += this.zonesArray[i].boops
     }
     return boops
   }
