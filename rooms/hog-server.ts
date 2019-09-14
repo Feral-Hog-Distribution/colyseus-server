@@ -1,5 +1,6 @@
 import { Room, Client } from "colyseus";
 import { Schema, type, MapSchema } from "@colyseus/schema";
+import ClockTimer from "@gamestdio/timer";
 
 export class ShipZone extends Schema {
   @type("string")
@@ -36,6 +37,13 @@ export class ShipZone extends Schema {
 }
 
 export class State extends Schema {
+  clock: ClockTimer
+
+  constructor(clock: ClockTimer) {
+    super()
+    this.clock = clock
+  }
+
   @type(ShipZone)
   booster = new ShipZone("booster", "Booster")
   @type(ShipZone)
@@ -46,10 +54,15 @@ export class State extends Schema {
   lifeSupport = new ShipZone("lifeSupport", "Life Support")
 
   @type("boolean")
-  betweenRounds = false
+  betweenRounds: boolean = false
+
+
+  boopsRequiredPerRound: number = 10
+  @type("int16")
+  totalBoopsRequired: number = this.boopsRequiredPerRound
 
   @type("int16")
-  totalBoopsRequired = 30
+  secondsForLastRound
 
   // map of client ids to zones
   @type({ map: ShipZone })
@@ -74,7 +87,8 @@ export class State extends Schema {
   }
 
   resetGame() {
-    this.stage = 0
+    this.stage = 1
+    this.totalBoopsRequired = this.boopsRequiredPerRound
     for (var i = 0; i < this.zonesArray.length; i++) {
       this.zonesArray[i].reset()
     }
@@ -89,17 +103,22 @@ export class State extends Schema {
   }
 
   hasEveryoneBoopedEnough() {
-    return this.totalBoops() >= (this.totalBoopsRequired * this.stage)
+    return this.totalBoops() >= this.totalBoopsRequired
   }
 
   nextRound() {
+    this.clock.start()
     this.betweenRounds = false
   }
 
   winTheGame() {
     this.stage += 1
     this.betweenRounds = true
-    console.log("we wind the game")
+    this.totalBoopsRequired = this.stage * this.boopsRequiredPerRound
+    this.clock.stop()
+    this.secondsForLastRound = this.clock.elapsedTime / 1000
+    this.clock.clear()
+    console.log("we wind the game in " + this.secondsForLastRound + " seconds")
   }
 
   getRoleByClientId(clientId: string) {
@@ -123,7 +142,7 @@ export class HogServerRoom extends Room<State> {
   onCreate(options) {
     console.log("StateHandlerRoom created!", options);
 
-    this.setState(new State());
+    this.setState(new State(this.clock));
   }
 
   onJoin(client: Client) {
