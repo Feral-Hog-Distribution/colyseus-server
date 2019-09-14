@@ -11,7 +11,7 @@ export class ShipZone extends Schema {
   @type("string")
   clientId: string
 
-  constructor(id: string, name: string, health: number = 50) {
+  constructor(id: string, name: string, health: number = 0) {
     super()
     this.id = id;
     this.name = name;
@@ -44,6 +44,9 @@ export class State extends Schema {
   @type({ map: ShipZone })
   zones = new MapSchema<ShipZone>();
 
+  @type("number")
+  stage: number = 0
+
   zonesArray = [this.booster, this.navigator, this.wrangler, this.lifeSupport]
 
   helpBooster(value: number = 1) {
@@ -57,6 +60,27 @@ export class State extends Schema {
   }
   helpLifeSupport(value: number = 1) {
     this.lifeSupport.help(value)
+  }
+
+  resetGame() {
+    // loops through zone array and set boops to 0
+  }
+
+  totalBoops() {
+    var boops = 0
+    for (var i = 0; i < this.zonesArray.length; i++) {
+      boops += this.zonesArray[i].health
+    }
+    return boops
+  }
+
+  hasEveryoneBoopedEnough() {
+    return this.totalBoops() > 50
+  }
+
+  winTheGame() {
+    this.stage += 1
+    console.log("we wind the game")
   }
 
   getRoleByClientId(clientId: string) {
@@ -103,8 +127,14 @@ export class HogServerRoom extends Room<State> {
       this.state.helpWrangler(data.value);
     } else if (data.command === "lifeSupport") {
       this.state.helpLifeSupport(data.value);
+    } else if (data.command === "resetGame") {
+      this.state.resetGame()
     } else {
       console.log("unknown command")
+    }
+
+    if (this.state.hasEveryoneBoopedEnough()) {
+      this.state.winTheGame()
     }
   }
 
