@@ -18,6 +18,10 @@ export class ShipZone extends Schema {
     this.health = health
   }
 
+  reset() {
+    this.health = 0
+  }
+
   hasPlayer() {
     return !!this.clientId
   }
@@ -63,7 +67,10 @@ export class State extends Schema {
   }
 
   resetGame() {
-    // loops through zone array and set boops to 0
+    this.stage = 0
+    for (var i = 0; i < this.zonesArray.length; i++) {
+      this.zonesArray[i].reset()
+    }
   }
 
   totalBoops() {
