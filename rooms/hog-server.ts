@@ -183,6 +183,7 @@ export class State extends Schema {
     this.totalCash += this.cashFromRound
   }
 
+
   calculateCashFromRound() {
     this.cashFromRound = 0
     const targetSpeed = this.totalBoopsRequired/40
