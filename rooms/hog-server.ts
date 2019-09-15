@@ -64,9 +64,9 @@ export class State extends Schema {
   secondsForLastRound
 
   @type("int64")
-  cash: number = 0
+  totalCash: number = 0
   @type("int64")
-  additionalCash: number = 0
+  cashFromRound: number = 0
   @type("int64")
   scoreMultiplier: number = 100
 
@@ -94,7 +94,7 @@ export class State extends Schema {
 
   resetGame() {
     this.stage = 1
-    this.cash = 0
+    this.totalCash = 0
     this.scoreMultiplier = 100
     this.totalBoopsRequired = this.boopsRequiredPerRound
     for (var i = 0; i < this.zonesArray.length; i++) {
@@ -127,15 +127,14 @@ export class State extends Schema {
     this.secondsForLastRound = this.clock.elapsedTime / 1000
     this.clock.clear()
     console.log("we wind the game in " + this.secondsForLastRound + " seconds")
-    this.additionalCash = this.calculateCash()
-    this.cash += this.additionalCash
+    this.cashFromRound = this.calculateCashFromRound()
+    this.totalCash += this.cashFromRound
   }
 
-  calculateCash() {
-    this.additionalCash = 0
+  calculateCashFromRound() {
+    this.cashFromRound = 0
     const targetSpeed = this.totalBoopsRequired/40
-    const round_cash = targetSpeed/this.secondsForLastRound*this.scoreMultiplier
-    return round_cash
+    return targetSpeed/this.secondsForLastRound*this.scoreMultiplier
 }
 
   getRoleByClientId(clientId: string) {
