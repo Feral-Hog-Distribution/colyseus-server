@@ -56,13 +56,19 @@ export class State extends Schema {
   @type("boolean")
   betweenRounds: boolean = false
 
-
   boopsRequiredPerRound: number = 10
   @type("int16")
   totalBoopsRequired: number = this.boopsRequiredPerRound
 
   @type("int16")
   secondsForLastRound
+
+  @type("int64")
+  cash: number = 0
+  @type("int64")
+  additionalCash: number = 0
+  @type("int64")
+  scoreMultiplier: number = 100
 
   // map of client ids to zones
   @type({ map: ShipZone })
@@ -88,6 +94,8 @@ export class State extends Schema {
 
   resetGame() {
     this.stage = 1
+    this.cash = 0
+    this.multiplier = 100
     this.totalBoopsRequired = this.boopsRequiredPerRound
     for (var i = 0; i < this.zonesArray.length; i++) {
       this.zonesArray[i].reset()
@@ -112,6 +120,7 @@ export class State extends Schema {
   }
 
   winTheGame() {
+
     this.stage += 1
     this.betweenRounds = true
     this.totalBoopsRequired = this.stage * this.boopsRequiredPerRound
@@ -119,7 +128,16 @@ export class State extends Schema {
     this.secondsForLastRound = this.clock.elapsedTime / 1000
     this.clock.clear()
     console.log("we wind the game in " + this.secondsForLastRound + " seconds")
+    this.additionalCash = this.calculateCash()
+    this.cash += this.additionalCash
   }
+
+  calculateCash() {
+    this.additionalCash = 0
+    const targetSpeed = this.totalBoopsRequired/40
+    const round_cash = targetSpeed/this.secondsForLastRound*this.multiplier
+    return round_cash
+}
 
   getRoleByClientId(clientId: string) {
     return this.zones[clientId]
