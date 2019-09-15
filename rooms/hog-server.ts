@@ -95,7 +95,7 @@ export class State extends Schema {
   resetGame() {
     this.stage = 1
     this.cash = 0
-    this.multiplier = 100
+    this.scoreMultiplier = 100
     this.totalBoopsRequired = this.boopsRequiredPerRound
     for (var i = 0; i < this.zonesArray.length; i++) {
       this.zonesArray[i].reset()
@@ -120,7 +120,6 @@ export class State extends Schema {
   }
 
   winTheGame() {
-
     this.stage += 1
     this.betweenRounds = true
     this.totalBoopsRequired = this.stage * this.boopsRequiredPerRound
@@ -135,7 +134,7 @@ export class State extends Schema {
   calculateCash() {
     this.additionalCash = 0
     const targetSpeed = this.totalBoopsRequired/40
-    const round_cash = targetSpeed/this.secondsForLastRound*this.multiplier
+    const round_cash = targetSpeed/this.secondsForLastRound*this.scoreMultiplier
     return round_cash
 }
 
