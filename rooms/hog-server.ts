@@ -170,6 +170,7 @@ export class State extends Schema {
     });
   }
 
+
   winTheGame() {
     this.stage += 1
     this.betweenRounds = true
