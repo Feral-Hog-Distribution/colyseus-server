@@ -11,6 +11,8 @@ export class ShipZone extends Schema {
   boops: number;
   @type("int16")
   currentRoundBoops: number;
+  @type("boolean")
+  readyForNextRound: boolean = false
   @type("string")
   clientId: string
 
@@ -138,16 +140,33 @@ export class State extends Schema {
     return this.currentRoundBoops() >= this.totalBoopsRequired
   }
 
-  nextRound() {
-    this.clock.start()
-    this.betweenRounds = false
-    this.resetCurrentRoundBoops()
+  everyoneReadyForNextRound(): boolean {
+    let allReady = true
+    this.zonesArray.forEach((zone) => {
+      if (zone.hasPlayer() && !zone.readyForNextRound) {
+        allReady = false
+      }
+    })
+    return allReady
   }
 
-  resetCurrentRoundBoops() {
+  nextRound(clientId: string) {
+    const role = this.getRoleByClientId(clientId)
+    role.readyForNextRound = true
+    console.log(role.name + " is ready")
+
+    if (this.everyoneReadyForNextRound()) {
+      this.prepareForNextRound()
+    }
+  }
+
+  prepareForNextRound() {
+    this.clock.start()
+    this.betweenRounds = false
     this.currentBoopsThisRound = 0
     this.zonesArray.forEach(zone => {
       zone.resetCurrentRoundBoops()
+      zone.readyForNextRound = false
     });
   }
 
@@ -170,7 +189,10 @@ export class State extends Schema {
 }
 
   getRoleByClientId(clientId: string) {
-    return this.zones[clientId]
+    const role = this.zonesArray.find(zone => {
+      return zone.clientId == clientId
+    })
+    return role
   }
 
   addClientToUnfilledRole(clientId: string) {
@@ -218,7 +240,7 @@ export class HogServerRoom extends Room<State> {
     } else if (data.command === "resetGame") {
       this.state.resetGame()
     } else if (data.command === "nextRound") {
-      this.state.nextRound()
+      this.state.nextRound(client.sessionId)
     } else {
       console.log("unknown command")
     }
