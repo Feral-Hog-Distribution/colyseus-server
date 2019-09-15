@@ -9,6 +9,8 @@ export class ShipZone extends Schema {
   name: string;
   @type("int16")
   boops: number;
+  @type("int16")
+  currentRoundBoops: number;
   @type("string")
   clientId: string
 
@@ -17,10 +19,12 @@ export class ShipZone extends Schema {
     this.id = id;
     this.name = name;
     this.boops = boops
+    this.currentRoundBoops = 0
   }
 
   reset() {
     this.boops = 0
+    this.currentRoundBoops = 0
   }
 
   hasPlayer() {
@@ -31,7 +35,12 @@ export class ShipZone extends Schema {
     this.clientId = clientId
   }
 
+  resetCurrentRoundBoops() {
+    this.currentRoundBoops = 0
+  }
+
   help(value: number = 1) {
+    this.currentRoundBoops += value
     this.boops += value
   }
 }
@@ -61,6 +70,9 @@ export class State extends Schema {
   totalBoopsRequired: number = this.boopsRequiredPerRound
 
   @type("int16")
+  currentBoopsThisRound: number = 0
+
+  @type("int16")
   secondsForLastRound
 
   @type("int64")
@@ -81,15 +93,19 @@ export class State extends Schema {
 
   helpBooster(value: number = 1) {
     this.booster.help(value)
+    this.currentBoopsThisRound = this.currentRoundBoops()
   }
   helpNavigator(value: number = 1) {
     this.navigator.help(value)
+    this.currentBoopsThisRound = this.currentRoundBoops()
   }
   helpWrangler(value: number = 1) {
     this.wrangler.help(value)
+    this.currentBoopsThisRound = this.currentRoundBoops()
   }
   helpLifeSupport(value: number = 1) {
     this.lifeSupport.help(value)
+    this.currentBoopsThisRound = this.currentRoundBoops()
   }
 
   resetGame() {
@@ -102,6 +118,14 @@ export class State extends Schema {
     }
   }
 
+  currentRoundBoops() {
+    var boops = 0
+    for (var i = 0; i < this.zonesArray.length; i++) {
+      boops += this.zonesArray[i].currentRoundBoops
+    }
+    return boops
+  }
+
   totalBoops() {
     var boops = 0
     for (var i = 0; i < this.zonesArray.length; i++) {
@@ -111,12 +135,20 @@ export class State extends Schema {
   }
 
   hasEveryoneBoopedEnough() {
-    return this.totalBoops() >= this.totalBoopsRequired
+    return this.currentRoundBoops() >= this.totalBoopsRequired
   }
 
   nextRound() {
     this.clock.start()
     this.betweenRounds = false
+    this.resetCurrentRoundBoops()
+  }
+
+  resetCurrentRoundBoops() {
+    this.currentBoopsThisRound = 0
+    this.zonesArray.forEach(zone => {
+      zone.resetCurrentRoundBoops()
+    });
   }
 
   winTheGame() {
