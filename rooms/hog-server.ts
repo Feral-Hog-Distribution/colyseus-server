@@ -208,7 +208,7 @@ export class State extends Schema {
 }
 
 export class HogServerRoom extends Room<State> {
-  maxClients = 5;
+  maxClients = 4;
 
   onCreate(options) {
     console.log("StateHandlerRoom created!", options);
