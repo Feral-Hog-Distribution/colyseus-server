@@ -153,7 +153,7 @@ export class State extends Schema {
 }
 
 export class HogServerRoom extends Room<State> {
-  maxClients = 4;
+  maxClients = 5;
 
   onCreate(options) {
     console.log("StateHandlerRoom created!", options);
@@ -161,9 +161,11 @@ export class HogServerRoom extends Room<State> {
     this.setState(new State(this.clock));
   }
 
-  onJoin(client: Client) {
-    // Person HAS joined!
-    this.state.addClientToUnfilledRole(client.sessionId)
+  onJoin(client: Client, options) {
+    // if you are just joining as a viewer then don't take a role slot
+    if (!options.joinAsViewer) {
+      this.state.addClientToUnfilledRole(client.sessionId)
+    }
   }
 
   onLeave(client) {
