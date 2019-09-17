@@ -88,6 +88,7 @@ export class State extends Schema {
   @type({ map: ShipZone })
   zones = new MapSchema<ShipZone>();
 
+  // The stage this game is currently at
   @type("int16")
   stage: number = 1
 
@@ -225,7 +226,7 @@ export class HogServerRoom extends Room<State> {
   }
 
   onLeave(client) {
-    // Person HAS left!
+    console.log("")
     this.state.removeClientFromRole(client.sessionId)
   }
 
