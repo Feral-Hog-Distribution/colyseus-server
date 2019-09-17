@@ -1,5 +1,5 @@
 import { Room, Client } from "colyseus";
-import { Schema, type, MapSchema } from "@colyseus/schema";
+import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
 import ClockTimer from "@gamestdio/timer";
 
 export class PlayerRole extends Schema {
@@ -39,20 +39,23 @@ export class PlayerRole extends Schema {
   }
 }
 
+/** Contains all the functions used for managing players */
 export class Players extends Schema {
-  @type(PlayerRole)
   booster = new PlayerRole("booster", "Booster")
-  @type(PlayerRole)
   navigator = new PlayerRole("navigator", "Navigator")
-  @type(PlayerRole)
   wrangler = new PlayerRole("wrangler", "Wrangler")
-  @type(PlayerRole)
   lifeSupport = new PlayerRole("lifeSupport", "Life Support")
 
   availableRoles: Array<PlayerRole> = [this.booster, this.navigator, this.wrangler, this.lifeSupport]
 
-  @type({ map: PlayerRole })
-  roles = new MapSchema<PlayerRole>();
+  // Track roles in this class, but send state from the state class
+  roles: MapSchema<PlayerRole>
+
+  constructor(roles: MapSchema<PlayerRole>) {
+    super()
+    this.roles = roles
+  }
+
 
   updateBoopsFor(clientId: string, value: number) {
     this.roles[clientId].updateBoops(value)
@@ -75,7 +78,7 @@ export class Players extends Schema {
 
   startRound() {
     for(let id in this.roles) {
-      this.roles[id].startNextRound()
+      this.roles[id].startRound()
     }
   }
 
@@ -102,24 +105,35 @@ export class GameState extends Schema {
   constructor(clock: ClockTimer) {
     super()
     this.clock = clock
+    this.roles = new MapSchema<PlayerRole>()
+    this.players = new Players(this.roles)
   }
+
+  players: Players
+
+  @type([ "string" ])
+  playerIds = new ArraySchema<String>()
+
+  // Roles is set here instead of in Players to keep the state
+  // as flat as possible
+  @type({ map: PlayerRole })
+  roles: MapSchema<PlayerRole>
 
   @type("int16")
   stage: number = 1
-
-  @type(Players)
-  players = new Players()
 
   @type("boolean")
   betweenRounds: boolean = false
 
   boopsRequiredPerRound: number = 10
-  @type("int16")
-  totalBoopsRequired: number = this.boopsRequiredPerRound
+  @type("int32")
+  boopsRequiredCurrentRound: number = this.boopsRequiredPerRound
 
   @type("int16")
-  secondsForLastRound
+  secondsForLastRound: number
 
+  @type("int32")
+  boopsToGo: number = this.boopsRequiredCurrentRound
   @type("int32")
   roundBoops: number = 0
   @type("int32")
@@ -136,10 +150,11 @@ export class GameState extends Schema {
     this.players.updateBoopsFor(clientId, value)
     this.roundBoops += value
     this.totalBoops += value
+    this.boopsToGo = this.boopsRequiredCurrentRound - this.roundBoops
   }
 
   hasEveryoneBoopedEnough() {
-    return this.roundBoops >= this.totalBoopsRequired
+    return this.roundBoops >= this.boopsRequiredCurrentRound
   }
 
   readyForNextRound(clientId: string) {
@@ -150,6 +165,8 @@ export class GameState extends Schema {
   tryStartNextRound() {
     if (!this.players.areReadyForNextRound()) return;
 
+    this.boopsRequiredCurrentRound = this.stage * this.boopsRequiredPerRound
+    this.boopsToGo = this.boopsRequiredCurrentRound
     this.clock.start()
     this.betweenRounds = false
     this.roundBoops = 0
@@ -159,7 +176,6 @@ export class GameState extends Schema {
   winTheRound() {
     this.stage += 1
     this.betweenRounds = true
-    this.totalBoopsRequired = this.stage * this.boopsRequiredPerRound
     this.clock.stop()
     this.secondsForLastRound = this.clock.elapsedTime / 1000
     this.clock.clear()
@@ -169,15 +185,17 @@ export class GameState extends Schema {
 
   calculateCashFromRound() {
     this.cashFromRound = 0
-    const targetSpeed = this.totalBoopsRequired/40
+    const targetSpeed = this.boopsRequiredCurrentRound/40
     return targetSpeed/this.secondsForLastRound*this.scoreMultiplier
   }
 
   addPlayer(clientId: string) {
+    this.playerIds.push(clientId)
     this.players.addPlayerToUnfilledRole(clientId)
   }
 
- removePlayer(clientId: string) {
+  removePlayer(clientId: string) {
+    this.playerIds.splice(this.playerIds.indexOf(clientId))
     this.players.removePlayerFromRole(clientId)
   }
 }
