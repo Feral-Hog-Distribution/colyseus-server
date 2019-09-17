@@ -2,52 +2,101 @@ import { Room, Client } from "colyseus";
 import { Schema, type, MapSchema } from "@colyseus/schema";
 import ClockTimer from "@gamestdio/timer";
 
-export class ShipZone extends Schema {
+export class PlayerRole extends Schema {
   @type("string")
   id: string;
   @type("string")
   name: string;
-  @type("int16")
-  boops: number;
-  @type("int16")
-  currentRoundBoops: number;
-  @type("boolean")
-  readyForNextRound: boolean = false
-  @type("string")
-  clientId: string
 
-  constructor(id: string, name: string, boops: number = 0) {
+  @type("boolean")
+  readyToPlay: boolean = false
+
+  @type("int16")
+  roundBoops: number;
+  @type("int16")
+  totalBoops: number;
+
+  constructor(id: string, name: string) {
     super()
     this.id = id;
     this.name = name;
-    this.boops = boops
-    this.currentRoundBoops = 0
+    this.totalBoops = 0
+    this.roundBoops = 0
   }
 
-  reset() {
-    this.boops = 0
-    this.currentRoundBoops = 0
+  isReadyForNextRound = () => this.readyToPlay
+
+  readyForNextRound = () => this.readyToPlay = true
+
+  startRound() {
+    this.roundBoops = 0
+    this.readyToPlay = false
   }
 
-  hasPlayer() {
-    return !!this.clientId
-  }
-
-  setPlayer(clientId: string) {
-    this.clientId = clientId
-  }
-
-  resetCurrentRoundBoops() {
-    this.currentRoundBoops = 0
-  }
-
-  help(value: number = 1) {
-    this.currentRoundBoops += value
-    this.boops += value
+  updateBoops(value) {
+    this.roundBoops += value
+    this.totalBoops += value
   }
 }
 
-export class State extends Schema {
+export class Players extends Schema {
+  @type(PlayerRole)
+  booster = new PlayerRole("booster", "Booster")
+  @type(PlayerRole)
+  navigator = new PlayerRole("navigator", "Navigator")
+  @type(PlayerRole)
+  wrangler = new PlayerRole("wrangler", "Wrangler")
+  @type(PlayerRole)
+  lifeSupport = new PlayerRole("lifeSupport", "Life Support")
+
+  availableRoles: Array<PlayerRole> = [this.booster, this.navigator, this.wrangler, this.lifeSupport]
+
+  @type({ map: PlayerRole })
+  roles = new MapSchema<PlayerRole>();
+
+  updateBoopsFor(clientId: string, value: number) {
+    this.roles[clientId].updateBoops(value)
+  }
+
+  // Ready and between round states
+  areReadyForNextRound(): boolean {
+    let allReady = true
+    for(let id in this.roles) {
+      if (!this.roles[id].readyForNextRound()) {
+        allReady = false
+      }
+    }
+    return allReady
+  }
+
+  readyForNextRound(clientId: string) {
+    this.roles[clientId].readyForNextRound()
+  }
+
+  startRound() {
+    for(let id in this.roles) {
+      this.roles[id].startNextRound()
+    }
+  }
+
+  // Functions for adding and remove players from their roles
+  getUnfilledRole(): PlayerRole {
+    if (this.availableRoles.length === 0) return null
+    return this.availableRoles.pop()
+  }
+
+  addPlayerToUnfilledRole(clientId: string) {
+    this.roles[clientId] = this.getUnfilledRole()
+    return this.roles[clientId]
+  }
+
+  removePlayerFromRole(clientId: string) {
+    this.availableRoles.push(this.roles[clientId])
+    delete this.roles[clientId]
+  }
+}
+
+export class GameState extends Schema {
   clock: ClockTimer
 
   constructor(clock: ClockTimer) {
@@ -55,14 +104,11 @@ export class State extends Schema {
     this.clock = clock
   }
 
-  @type(ShipZone)
-  booster = new ShipZone("booster", "Booster")
-  @type(ShipZone)
-  navigator = new ShipZone("navigator", "Navigator")
-  @type(ShipZone)
-  wrangler = new ShipZone("wrangler", "Wrangler")
-  @type(ShipZone)
-  lifeSupport = new ShipZone("lifeSupport", "Life Support")
+  @type("int16")
+  stage: number = 1
+
+  @type(Players)
+  players = new Players()
 
   @type("boolean")
   betweenRounds: boolean = false
@@ -72,10 +118,12 @@ export class State extends Schema {
   totalBoopsRequired: number = this.boopsRequiredPerRound
 
   @type("int16")
-  currentBoopsThisRound: number = 0
-
-  @type("int16")
   secondsForLastRound
+
+  @type("int32")
+  roundBoops: number = 0
+  @type("int32")
+  totalBoops: number = 0
 
   @type("int64")
   totalCash: number = 0
@@ -84,172 +132,90 @@ export class State extends Schema {
   @type("int64")
   scoreMultiplier: number = 100
 
-  // map of client ids to zones
-  @type({ map: ShipZone })
-  zones = new MapSchema<ShipZone>();
-
-  // The stage this game is currently at
-  @type("int16")
-  stage: number = 1
-
-  zonesArray = [this.booster, this.navigator, this.wrangler, this.lifeSupport]
-
-  helpBooster(value: number = 1) {
-    this.booster.help(value)
-    this.currentBoopsThisRound = this.currentRoundBoops()
-  }
-  helpNavigator(value: number = 1) {
-    this.navigator.help(value)
-    this.currentBoopsThisRound = this.currentRoundBoops()
-  }
-  helpWrangler(value: number = 1) {
-    this.wrangler.help(value)
-    this.currentBoopsThisRound = this.currentRoundBoops()
-  }
-  helpLifeSupport(value: number = 1) {
-    this.lifeSupport.help(value)
-    this.currentBoopsThisRound = this.currentRoundBoops()
-  }
-
-  resetGame() {
-    this.stage = 1
-    this.totalCash = 0
-    this.scoreMultiplier = 100
-    this.totalBoopsRequired = this.boopsRequiredPerRound
-    for (var i = 0; i < this.zonesArray.length; i++) {
-      this.zonesArray[i].reset()
-    }
-  }
-
-  currentRoundBoops() {
-    var boops = 0
-    for (var i = 0; i < this.zonesArray.length; i++) {
-      boops += this.zonesArray[i].currentRoundBoops
-    }
-    return boops
-  }
-
-  totalBoops() {
-    var boops = 0
-    for (var i = 0; i < this.zonesArray.length; i++) {
-      boops += this.zonesArray[i].boops
-    }
-    return boops
+  updateBoops(clientId: string, value: number) {
+    this.players.updateBoopsFor(clientId, value)
+    this.roundBoops += value
+    this.totalBoops += value
   }
 
   hasEveryoneBoopedEnough() {
-    return this.currentRoundBoops() >= this.totalBoopsRequired
+    return this.roundBoops >= this.totalBoopsRequired
   }
 
-  everyoneReadyForNextRound(): boolean {
-    let allReady = true
-    this.zonesArray.forEach((zone) => {
-      if (zone.hasPlayer() && !zone.readyForNextRound) {
-        allReady = false
-      }
-    })
-    return allReady
+  readyForNextRound(clientId: string) {
+    this.players.readyForNextRound(clientId)
+    this.tryStartNextRound()
   }
 
-  nextRound(clientId: string) {
-    const role = this.getRoleByClientId(clientId)
-    role.readyForNextRound = true
-    console.log(role.name + " is ready")
+  tryStartNextRound() {
+    if (!this.players.areReadyForNextRound()) return;
 
-    if (this.everyoneReadyForNextRound()) {
-      this.prepareForNextRound()
-    }
-  }
-
-  prepareForNextRound() {
     this.clock.start()
     this.betweenRounds = false
-    this.currentBoopsThisRound = 0
-    this.zonesArray.forEach(zone => {
-      zone.resetCurrentRoundBoops()
-      zone.readyForNextRound = false
-    });
+    this.roundBoops = 0
+    this.players.startRound()
   }
 
-
-  winTheGame() {
+  winTheRound() {
     this.stage += 1
     this.betweenRounds = true
     this.totalBoopsRequired = this.stage * this.boopsRequiredPerRound
     this.clock.stop()
     this.secondsForLastRound = this.clock.elapsedTime / 1000
     this.clock.clear()
-    console.log("we wind the game in " + this.secondsForLastRound + " seconds")
     this.cashFromRound = this.calculateCashFromRound()
     this.totalCash += this.cashFromRound
   }
-
 
   calculateCashFromRound() {
     this.cashFromRound = 0
     const targetSpeed = this.totalBoopsRequired/40
     return targetSpeed/this.secondsForLastRound*this.scoreMultiplier
-}
-
-  getRoleByClientId(clientId: string) {
-    const role = this.zonesArray.find(zone => {
-      return zone.clientId == clientId
-    })
-    return role
   }
 
-  addClientToUnfilledRole(clientId: string) {
-    const unfilledRole = this.zonesArray.find(function(zone) { return !zone.hasPlayer() })
-    unfilledRole.setPlayer(clientId)
-    this.zones[clientId] = unfilledRole
+  addPlayer(clientId: string) {
+    this.players.addPlayerToUnfilledRole(clientId)
   }
 
-  removeClientFromRole(clientId: string) {
-    this.getRoleByClientId(clientId).setPlayer(null)
+ removePlayer(clientId: string) {
+    this.players.removePlayerFromRole(clientId)
   }
 }
 
-export class HogServerRoom extends Room<State> {
+export class HogServerRoom extends Room<GameState> {
   maxClients = 4;
 
   onCreate(options) {
-    console.log("StateHandlerRoom created!", options);
+    console.log("Feral Hog Distribution game has been created!", options);
 
-    this.setState(new State(this.clock));
+    this.setState(new GameState(this.clock));
   }
 
   onJoin(client: Client, options) {
     // if you are just joining as a viewer then don't take a role slot
     if (!options.joinAsViewer) {
-      this.state.addClientToUnfilledRole(client.sessionId)
+      this.state.addPlayer(client.sessionId)
     }
+    console.log(`Player ${client.sessionId} has joined the game`)
   }
 
   onLeave(client) {
-    console.log("")
-    this.state.removeClientFromRole(client.sessionId)
+    console.log(`Player ${client.sessionId} has left the game`)
+    this.state.removePlayer(client.sessionId)
   }
 
   onMessage(client, data) {
     console.log("StateHandlerRoom received message from", client.sessionId, ":", data);
-    if (data.command === "booster") {
-      this.state.helpBooster(data.value);
-    } else if (data.command === "navigator") {
-      this.state.helpNavigator(data.value);
-    } else if (data.command === "wrangler") {
-      this.state.helpWrangler(data.value);
-    } else if (data.command === "lifeSupport") {
-      this.state.helpLifeSupport(data.value);
-    } else if (data.command === "resetGame") {
-      this.state.resetGame()
+    if (data.command === "updateBoops") {
+      this.state.updateBoops(client.sessionId, data.value);
+      if (this.state.hasEveryoneBoopedEnough()) {
+        this.state.winTheRound()
+      }
     } else if (data.command === "nextRound") {
-      this.state.nextRound(client.sessionId)
+      this.state.readyForNextRound(client.sessionId)
     } else {
       console.log("unknown command")
-    }
-
-    if (this.state.hasEveryoneBoopedEnough()) {
-      this.state.winTheGame()
+      console.log(data)
     }
   }
 
