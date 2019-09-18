@@ -112,7 +112,7 @@ export class GameState extends Schema {
   players: Players
 
   @type([ "string" ])
-  playerIds = new ArraySchema<String>()
+  playerIds = new ArraySchema<string>()
 
   // Roles is set here instead of in Players to keep the state
   // as flat as possible
@@ -191,11 +191,15 @@ export class GameState extends Schema {
 
   addPlayer(clientId: string) {
     this.playerIds.push(clientId)
+    // clone so that all ids are sent, not just one
+    this.playerIds = this.playerIds.clone()
     this.players.addPlayerToUnfilledRole(clientId)
   }
 
   removePlayer(clientId: string) {
-    this.playerIds.splice(this.playerIds.indexOf(clientId))
+    this.playerIds.splice(this.playerIds.findIndex(playerId => clientId === playerId), 1)
+    // clone so that all ids are sent, not just one
+    this.playerIds = this.playerIds.clone()
     this.players.removePlayerFromRole(clientId)
   }
 }
@@ -232,7 +236,7 @@ export class HogServerRoom extends Room<GameState> {
     } else if (data.command === "nextRound") {
       this.state.readyForNextRound(client.sessionId)
     } else {
-      console.log("unknown command")
+      console.log("unknown command with data:")
       console.log(data)
     }
   }
@@ -240,5 +244,4 @@ export class HogServerRoom extends Room<GameState> {
   onDispose() {
     console.log("Dispose StateHandlerRoom");
   }
-
 }
